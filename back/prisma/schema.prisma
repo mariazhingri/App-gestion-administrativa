@@ -1,13 +1,186 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
+}
+
+model clientes {
+  id               Int             @id @default(autoincrement())
+  nombre_completo  String          @db.VarChar(150)
+  correo           String          @db.VarChar(150)
+  celular          String?         @db.VarChar(20)
+  fecha_nacimiento DateTime?       @db.Date
+  direccion        String          @db.VarChar(250)
+  provincia        String          @db.VarChar(100)
+  canton           String          @db.VarChar(100)
+  status           clientes_status
+  fecha_registro   DateTime        @default(now()) @db.DateTime(0)
+  ventas           ventas[]
+}
+
+model definicion_costo {
+  id             Int                     @id @default(autoincrement())
+  producto_id    Int
+  insumo_id      Int
+  cantidad       Decimal                 @db.Decimal(10, 3)
+  unidad         definicion_costo_unidad
+  costo          Decimal                 @db.Decimal(10, 2)
+  status         definicion_costo_status
+  fecha_registro DateTime                @default(now()) @db.DateTime(0)
+  productos      productos               @relation(fields: [producto_id], references: [id], onUpdate: Restrict, map: "definicion_costo_ibfk_1")
+  insumos        insumos                 @relation(fields: [insumo_id], references: [id], onUpdate: Restrict, map: "definicion_costo_ibfk_2")
+
+  @@index([insumo_id], map: "insumo_id")
+  @@index([producto_id], map: "producto_id")
+}
+
+model insumos {
+  id               Int                @id @default(autoincrement())
+  nombre           String             @db.VarChar(150)
+  tipo             insumos_tipo
+  costo            Decimal            @db.Decimal(10, 2)
+  unidad           insumos_unidad
+  status           insumos_status
+  fecha_registro   DateTime           @default(now()) @db.DateTime(0)
+  definicion_costo definicion_costo[]
+}
+
+model productos {
+  id                  Int                @id @default(autoincrement())
+  nombre              String             @db.VarChar(150)
+  tipo                productos_tipo
+  precio              Decimal?           @db.Decimal(10, 2)
+  costo               Decimal            @db.Decimal(10, 2)
+  porcentaje_ganancia Decimal            @db.Decimal(5, 2)
+  status              productos_status
+  fecha_registro      DateTime           @default(now()) @db.DateTime(0)
+  definicion_costo    definicion_costo[]
+  venta_detalle       venta_detalle[]
+}
+
+model proveedores {
+  id              Int                @id @default(autoincrement())
+  nombre_completo String             @db.VarChar(150)
+  correo          String?            @db.VarChar(150)
+  celular         String?            @db.VarChar(20)
+  direccion       String             @db.VarChar(250)
+  provincia       String             @db.VarChar(100)
+  canton          String             @db.VarChar(100)
+  status          proveedores_status
+  fecha_registro  DateTime           @default(now()) @db.DateTime(0)
+}
+
+model venta_detalle {
+  id             Int                  @id @default(autoincrement())
+  venta_id       Int
+  producto_id    Int
+  cantidad       Decimal              @db.Decimal(10, 2)
+  precio         Decimal              @db.Decimal(10, 2)
+  iva            Decimal              @db.Decimal(10, 2)
+  subtotal       Decimal              @db.Decimal(10, 2)
+  status         venta_detalle_status
+  fecha_registro DateTime             @default(now()) @db.DateTime(0)
+  ventas         ventas               @relation(fields: [venta_id], references: [id], onUpdate: Restrict, map: "venta_detalle_ibfk_1")
+  productos      productos            @relation(fields: [producto_id], references: [id], onUpdate: Restrict, map: "venta_detalle_ibfk_2")
+
+  @@index([producto_id], map: "producto_id")
+  @@index([venta_id], map: "venta_id")
+}
+
+model ventas {
+  id                Int             @id @default(autoincrement())
+  cliente_id        Int
+  fecha_transaccion DateTime        @db.Date
+  subtotal          Decimal         @db.Decimal(10, 2)
+  iva               Decimal         @db.Decimal(10, 2)
+  total             Decimal         @db.Decimal(10, 2)
+  status            ventas_status
+  fecha_registro    DateTime        @default(now()) @db.DateTime(0)
+  venta_detalle     venta_detalle[]
+  clientes          clientes        @relation(fields: [cliente_id], references: [id], onUpdate: Restrict, map: "ventas_ibfk_1")
+
+  @@index([cliente_id], map: "cliente_id")
+}
+
+enum insumos_tipo {
+  CON
+  VEG
+  BAS
+  ALQ
+  NPR
+  PER
+}
+
+enum productos_tipo {
+  MOR
+  MRZ
+  ALM
+  GAS
+  NAT
+  LIC
+  DOM
+  ADI
+}
+
+enum definicion_costo_unidad {
+  LIT
+  UNI
+  LIB
+  ONZ
+  MIL
+  GRA
+}
+
+enum insumos_unidad {
+  LIT
+  UNI
+  LIB
+  ONZ
+  MIL
+  GRA
+}
+
+enum insumos_status {
+  A
+  I
+  E
+}
+
+enum definicion_costo_status {
+  A
+  I
+  E
+}
+
+enum productos_status {
+  A
+  I
+  E
+}
+
+enum ventas_status {
+  A
+  I
+  E
+}
+
+enum proveedores_status {
+  A
+  I
+  E
+}
+
+enum venta_detalle_status {
+  A
+  I
+  E
+}
+
+enum clientes_status {
+  A
+  I
+  E
 }
