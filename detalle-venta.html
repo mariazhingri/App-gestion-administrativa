@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Detalle de venta</title>
+<style>
+  * { box-sizing: border-box; }
+  :root { --blue:#1769e8; --navy:#173b69; --text:#202c3d; --muted:#758399; --line:#e6edf5; --bg:#f3f6fb; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:Inter,Arial,sans-serif; }
+  .app { max-width:430px; min-height:100vh; margin:0 auto; background:#f8fafd; padding-bottom:104px; }
+  header { background:var(--navy); color:white; padding:18px 18px 20px; }
+  .statusbar { display:flex; justify-content:space-between; font-size:12px; margin-bottom:22px; opacity:.95; }
+  .header-row { display:flex; align-items:center; gap:14px; }
+  .back { width:32px; height:32px; border:0; background:transparent; color:white; font-size:30px; line-height:1; padding:0; cursor:pointer; }
+  h1 { font-size:21px; margin:0; font-weight:700; flex:1; }
+  .more { background:transparent; border:0; color:white; font-size:25px; cursor:pointer; }
+  main { padding:16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 3px 12px rgba(25,55,90,.035); }
+  .sale-top { display:flex; gap:13px; align-items:flex-start; }
+  .sale-icon { width:52px; height:52px; flex-shrink:0; border-radius:50%; background:#e5efff; color:var(--blue); display:grid; place-items:center; font-size:25px; }
+  .sale-main { min-width:0; flex:1; }
+  .sale-title { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:2px 0 13px; }
+  .sale-title strong { font-size:20px; }
+  .badge { border-radius:18px; padding:5px 10px; background:#d9f7e5; color:#167344; font-size:11px; font-weight:700; }
+  .meta { display:flex; gap:9px; align-items:center; color:#526783; font-size:13px; margin:9px 0; }
+  .meta .ico { width:17px; text-align:center; color:#607b9f; }
+  .summary { display:grid; grid-template-columns:1fr 1fr 1fr; }
+  .summary > div { padding:0 9px; border-right:1px solid var(--line); }
+  .summary > div:first-child { padding-left:0; }
+  .summary > div:last-child { border:0; padding-right:0; text-align:right; }
+  .summary span { display:block; font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .summary strong { font-size:16px; white-space:nowrap; }
+  .summary .grand { color:var(--blue); font-size:21px; }
+  .section-heading { display:flex; align-items:center; justify-content:space-between; margin:21px 2px 12px; }
+  .section-heading h2 { margin:0; font-size:16px; }
+  .count { background:#eaf1fb; color:#4f6584; font-size:12px; font-weight:700; padding:6px 10px; border-radius:15px; }
+  .product { display:flex; align-items:center; gap:11px; padding:12px 0; border-bottom:1px solid #edf1f6; }
+  .product:last-child { border-bottom:0; padding-bottom:0; }
+  .thumb { width:52px; height:52px; flex-shrink:0; border-radius:12px; display:grid; place-items:center; background:#f1f4f8; font-size:27px; }
+  .product-info { flex:1; min-width:0; }
+  .product-name { font-size:13px; font-weight:700; margin-bottom:5px; }
+  .product-category { color:var(--muted); font-size:11px; }
+  .product-math { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex-wrap:wrap; margin-top:8px; font-size:11px; color:#718099; }
+  .product-math strong { color:#233957; font-size:13px; margin-left:3px; }
+  .x { color:#9aa6b6; }
+  .totals .row { display:flex; justify-content:space-between; gap:12px; margin:10px 0; color:#647287; font-size:13px; }
+  .totals .row strong { color:#26354a; }
+  .totals .final { border-top:1px solid var(--line); padding-top:14px; margin-top:15px; margin-bottom:0; color:#202c3d; font-weight:700; font-size:16px; }
+  .totals .final strong { color:var(--blue); font-size:22px; }
+  .note-title { display:flex; align-items:center; gap:9px; font-weight:700; font-size:13px; margin-bottom:9px; }
+  .note { color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
+  .actions { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; display:flex; gap:10px; padding:13px 16px calc(13px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  .btn { flex:1; border-radius:11px; padding:14px 10px; font-size:14px; font-weight:700; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:8px; }
+  .btn-outline { border:1px solid var(--blue); color:var(--blue); background:#fff; }
+  .btn-primary { border:1px solid var(--blue); color:white; background:var(--blue); }
+  @media (min-width:600px) { body { padding:20px 0; } .app { border-radius:22px; overflow:hidden; box-shadow:0 12px 40px #172b4518; } .actions { bottom:20px; border-radius:0 0 22px 22px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="statusbar"><span>9:41</span><span>▮▮▮　◉　▰</span></div>
+    <div class="header-row">
+      <button class="back" onclick="history.back()" aria-label="Volver">‹</button>
+      <h1>Detalle de venta</h1>
+      <button class="more" onclick="alert('Opciones de la venta')" aria-label="Más opciones">⋮</button>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <div class="sale-top">
+        <div class="sale-icon">▤</div>
+        <div class="sale-main">
+          <div class="sale-title"><strong>V-000012</strong><span class="badge">Normal</span></div>
+          <div class="meta"><span class="ico">▦</span><span>08/10/2026 · 12:45</span></div>
+          <div class="meta"><span class="ico">♙</span><span>Cliente: María López</span></div>
+          <div class="meta"><span class="ico">▣</span><span>Forma de pago: Efectivo</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card summary">
+      <div><span>Subtotal</span><strong id="subtotal">$22.00</strong></div>
+      <div><span>Descuento</span><strong id="descuento">$0.00</strong></div>
+      <div><span>Total</span><strong class="grand" id="total">$22.00</strong></div>
+    </section>
+
+    <div class="section-heading"><h2>Productos</h2><span class="count">4 unidades</span></div>
+    <section class="card" id="productos">
+      <article class="product" data-precio="8.50" data-cantidad="2">
+        <div class="thumb">🍔</div><div class="product-info"><div class="product-name">Hamburguesa</div><div class="product-category">Comida</div><div class="product-math"><span>$8.50</span><span class="x">×</span><span>2</span><strong>$17.00</strong></div></div>
+      </article>
+      <article class="product" data-precio="1.50" data-cantidad="2">
+        <div class="thumb">🥤</div><div class="product-info"><div class="product-name">Gaseosa 355 ml</div><div class="product-category">Bebidas</div><div class="product-math"><span>$1.50</span><span class="x">×</span><span>2</span><strong>$3.00</strong></div></div>
+      </article>
+      <article class="product" data-precio="2.00" data-cantidad="1">
+        <div class="thumb">🍟</div><div class="product-info"><div class="product-name">Papas fritas</div><div class="product-category">Extras</div><div class="product-math"><span>$2.00</span><span class="x">×</span><span>1</span><strong>$2.00</strong></div></div>
+      </article>
+    </section>
+
+    <section class="card totals">
+      <h2 style="font-size:15px;margin:0 0 15px">Resumen de pago</h2>
+      <div class="row"><span>Subtotal</span><strong>$22.00</strong></div>
+      <div class="row"><span>Descuento</span><strong>$0.00</strong></div>
+      <div class="row final"><span>Total a pagar</span><strong>$22.00</strong></div>
+    </section>
+
+    <section class="card">
+      <div class="note-title"><span>▤</span> Observaciones</div>
+      <p class="note">Sin observaciones registradas.</p>
+    </section>
+  </main>
+  <div class="actions">
+    <button class="btn btn-outline" onclick="window.print()"><span>▣</span> Imprimir</button>
+    <button class="btn btn-primary" onclick="alert('Aquí puedes navegar al formulario de edición de la venta.')"><span>✎</span> Editar</button>
+  </div>
+</div>
+</body>
+</html>

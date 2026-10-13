@@ -16,49 +16,57 @@ model clientes {
   direccion        String          @db.VarChar(250)
   provincia        String          @db.VarChar(100)
   canton           String          @db.VarChar(100)
+  fecha_emision    DateTime        @db.Date
   status           clientes_status
   fecha_registro   DateTime        @default(now()) @db.DateTime(0)
   ventas           ventas[]
 }
 
 model definicion_costo {
-  id             Int                     @id @default(autoincrement())
-  producto_id    Int
-  insumo_id      Int
-  cantidad       Decimal                 @db.Decimal(10, 3)
-  unidad         definicion_costo_unidad
-  costo          Decimal                 @db.Decimal(10, 2)
-  status         definicion_costo_status
-  fecha_registro DateTime                @default(now()) @db.DateTime(0)
-  productos      productos               @relation(fields: [producto_id], references: [id], onUpdate: Restrict, map: "definicion_costo_ibfk_1")
-  insumos        insumos                 @relation(fields: [insumo_id], references: [id], onUpdate: Restrict, map: "definicion_costo_ibfk_2")
+  id                       Int                        @id @default(autoincrement())
+  producto_id              Int
+  costo_total              Decimal                    @db.Decimal(10, 2)
+  fecha_vigencia_desde     DateTime?                  @db.Date
+  fecha_vigencia_hasta     DateTime?                  @db.Date
+  fecha_emision            DateTime                   @db.Date
+  status                   definicion_costo_status
+  fecha_registro           DateTime                   @default(now()) @db.DateTime(0)
+  productos                productos                  @relation(fields: [producto_id], references: [id], onUpdate: Restrict, map: "definicion_costo_ibfk_1")
+  definicion_costo_detalle definicion_costo_detalle[]
 
-  @@index([insumo_id], map: "insumo_id")
   @@index([producto_id], map: "producto_id")
 }
 
 model insumos {
-  id               Int                @id @default(autoincrement())
-  nombre           String             @db.VarChar(150)
-  tipo             insumos_tipo
-  costo            Decimal            @db.Decimal(10, 2)
-  unidad           insumos_unidad
-  status           insumos_status
-  fecha_registro   DateTime           @default(now()) @db.DateTime(0)
-  definicion_costo definicion_costo[]
+  id                       Int                        @id @default(autoincrement())
+  nombre                   String                     @db.VarChar(150)
+  tipo                     insumos_tipo
+  costo                    Decimal                    @db.Decimal(10, 2)
+  unidad                   insumos_unidad
+  fecha_emision            DateTime                   @db.Date
+  status                   insumos_status
+  fecha_registro           DateTime                   @default(now()) @db.DateTime(0)
+  compra_detalle           compra_detalle[]
+  definicion_costo_detalle definicion_costo_detalle[]
 }
 
 model productos {
   id                  Int                @id @default(autoincrement())
+  categoria_id        Int
   nombre              String             @db.VarChar(150)
   tipo                productos_tipo
   precio              Decimal?           @db.Decimal(10, 2)
   costo               Decimal            @db.Decimal(10, 2)
   porcentaje_ganancia Decimal            @db.Decimal(5, 2)
+  imagen              String?            @db.VarChar(250)
+  fecha_emision       DateTime           @db.Date
   status              productos_status
   fecha_registro      DateTime           @default(now()) @db.DateTime(0)
   definicion_costo    definicion_costo[]
+  categorias          categorias         @relation(fields: [categoria_id], references: [id], onUpdate: Restrict, map: "productos_ibfk_1")
   venta_detalle       venta_detalle[]
+
+  @@index([categoria_id], map: "categoria_id")
 }
 
 model proveedores {
@@ -69,8 +77,10 @@ model proveedores {
   direccion       String             @db.VarChar(250)
   provincia       String             @db.VarChar(100)
   canton          String             @db.VarChar(100)
+  fecha_emision   DateTime           @db.Date
   status          proveedores_status
   fecha_registro  DateTime           @default(now()) @db.DateTime(0)
+  compras         compras[]
 }
 
 model venta_detalle {
@@ -79,8 +89,10 @@ model venta_detalle {
   producto_id    Int
   cantidad       Decimal              @db.Decimal(10, 2)
   precio         Decimal              @db.Decimal(10, 2)
+  costo_unitario Decimal              @db.Decimal(10, 2)
   iva            Decimal              @db.Decimal(10, 2)
   subtotal       Decimal              @db.Decimal(10, 2)
+  costo_total    Decimal              @db.Decimal(10, 2)
   status         venta_detalle_status
   fecha_registro DateTime             @default(now()) @db.DateTime(0)
   ventas         ventas               @relation(fields: [venta_id], references: [id], onUpdate: Restrict, map: "venta_detalle_ibfk_1")
@@ -91,18 +103,85 @@ model venta_detalle {
 }
 
 model ventas {
-  id                Int             @id @default(autoincrement())
-  cliente_id        Int
-  fecha_transaccion DateTime        @db.Date
-  subtotal          Decimal         @db.Decimal(10, 2)
-  iva               Decimal         @db.Decimal(10, 2)
-  total             Decimal         @db.Decimal(10, 2)
-  status            ventas_status
-  fecha_registro    DateTime        @default(now()) @db.DateTime(0)
-  venta_detalle     venta_detalle[]
-  clientes          clientes        @relation(fields: [cliente_id], references: [id], onUpdate: Restrict, map: "ventas_ibfk_1")
+  id                   Int             @id @default(autoincrement())
+  cliente_id           Int
+  fecha_emision        DateTime        @db.Date
+  subtotal             Decimal         @db.Decimal(10, 2)
+  descuento_porcentaje Int             @default(0)
+  descuento_valor      Decimal         @default(0.00) @db.Decimal(10, 2)
+  iva                  Decimal         @db.Decimal(10, 2)
+  total                Decimal         @db.Decimal(10, 2)
+  costo_total          Decimal         @default(0.00) @db.Decimal(10, 2)
+  observacion          String?         @db.VarChar(250)
+  status               ventas_status
+  fecha_registro       DateTime        @default(now()) @db.DateTime(0)
+  venta_detalle        venta_detalle[]
+  clientes             clientes        @relation(fields: [cliente_id], references: [id], onUpdate: Restrict, map: "ventas_ibfk_1")
 
   @@index([cliente_id], map: "cliente_id")
+}
+
+model compra_detalle {
+  id              Int                   @id @default(autoincrement())
+  compra_id       Int
+  insumo_id       Int
+  cantidad        Decimal               @db.Decimal(10, 3)
+  unidad          compra_detalle_unidad
+  costo_unitario  Decimal               @db.Decimal(10, 4)
+  descuento_valor Decimal               @default(0.00) @db.Decimal(10, 2)
+  iva             Decimal               @default(0.00) @db.Decimal(10, 2)
+  subtotal        Decimal               @db.Decimal(10, 2)
+  status          compra_detalle_status @default(A)
+  fecha_registro  DateTime              @default(now()) @db.DateTime(0)
+  compras         compras               @relation(fields: [compra_id], references: [id], onUpdate: Restrict, map: "compra_detalle_ibfk_1")
+  insumos         insumos               @relation(fields: [insumo_id], references: [id], onUpdate: Restrict, map: "compra_detalle_ibfk_2")
+
+  @@index([compra_id], map: "compra_id")
+  @@index([insumo_id], map: "insumo_id")
+}
+
+model compras {
+  id                   Int              @id @default(autoincrement())
+  proveedor_id         Int
+  fecha_emision        DateTime         @db.Date
+  subtotal             Decimal          @default(0.00) @db.Decimal(10, 2)
+  descuento_porcentaje Decimal          @default(0.00) @db.Decimal(5, 2)
+  descuento_valor      Decimal          @default(0.00) @db.Decimal(10, 2)
+  iva                  Decimal          @default(0.00) @db.Decimal(10, 2)
+  total                Decimal          @default(0.00) @db.Decimal(10, 2)
+  observacion          String?          @db.VarChar(250)
+  status               compras_status   @default(A)
+  fecha_registro       DateTime         @default(now()) @db.DateTime(0)
+  compra_detalle       compra_detalle[]
+  proveedores          proveedores      @relation(fields: [proveedor_id], references: [id], onUpdate: Restrict, map: "compras_ibfk_1")
+
+  @@index([proveedor_id], map: "proveedor_id")
+}
+
+model definicion_costo_detalle {
+  id                  Int                             @id @default(autoincrement())
+  definicion_costo_id Int
+  insumo_id           Int
+  cantidad            Decimal                         @db.Decimal(10, 3)
+  unidad              definicion_costo_detalle_unidad
+  costo_unitario      Decimal                         @db.Decimal(10, 2)
+  costo_total         Decimal                         @db.Decimal(10, 2)
+  status              definicion_costo_detalle_status
+  fecha_registro      DateTime                        @default(now()) @db.DateTime(0)
+  definicion_costo    definicion_costo                @relation(fields: [definicion_costo_id], references: [id], onUpdate: Restrict, map: "definicion_costo_detalle_ibfk_1")
+  insumos             insumos                         @relation(fields: [insumo_id], references: [id], onUpdate: Restrict, map: "definicion_costo_detalle_ibfk_2")
+
+  @@index([definicion_costo_id], map: "definicion_costo_id")
+  @@index([insumo_id], map: "insumo_id")
+}
+
+model categorias {
+  id             Int               @id @default(autoincrement())
+  nombre         String            @db.VarChar(150)
+  descripcion    String?           @db.VarChar(150)
+  status         categorias_status @default(A)
+  fecha_registro DateTime          @default(now()) @db.DateTime(0)
+  productos      productos[]
 }
 
 enum insumos_tipo {
@@ -123,15 +202,6 @@ enum productos_tipo {
   LIC
   DOM
   ADI
-}
-
-enum definicion_costo_unidad {
-  LIT
-  UNI
-  LIB
-  ONZ
-  MIL
-  GRA
 }
 
 enum insumos_unidad {
@@ -180,6 +250,48 @@ enum venta_detalle_status {
 }
 
 enum clientes_status {
+  A
+  I
+  E
+}
+
+enum compra_detalle_unidad {
+  LIT
+  UNI
+  LIB
+  ONZ
+  MIL
+  GRA
+}
+
+enum definicion_costo_detalle_unidad {
+  LIT
+  UNI
+  LIB
+  ONZ
+  MIL
+  GRA
+}
+
+enum definicion_costo_detalle_status {
+  A
+  I
+  E
+}
+
+enum compras_status {
+  A
+  I
+  E
+}
+
+enum compra_detalle_status {
+  A
+  I
+  E
+}
+
+enum categorias_status {
   A
   I
   E

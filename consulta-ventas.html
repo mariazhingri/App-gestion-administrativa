@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consulta de ventas</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f2f5f9;color:#1d2b43;font-family:Arial,Helvetica,sans-serif}
+  .app{width:100%;max-width:460px;min-height:100vh;margin:0 auto;background:#f8fafc;padding:22px 16px 28px}
+  .header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  .back{width:42px;height:42px;border:1px solid #e3eaf2;border-radius:12px;background:white;color:#203754;font-size:25px;cursor:pointer}
+  h1{font-size:23px;margin:0 0 5px;font-weight:750}
+  .subtitle{margin:0;font-size:13px;color:#7b8799}
+  .panel{background:#fff;border:1px solid #e4ebf4;border-radius:16px;padding:15px;margin-bottom:14px;box-shadow:0 3px 12px rgba(25,53,90,.03)}
+  .field{margin-bottom:12px}
+  .field:last-child{margin-bottom:0}
+  label{display:block;font-size:11px;font-weight:700;color:#65748a;margin-bottom:7px;letter-spacing:.35px}
+  input,select{width:100%;padding:12px;border:1px solid #dce5ef;border-radius:10px;background:#fff;font-size:13px;color:#283b55;outline:none}
+  .date-grid,.filters{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .search-btn{width:100%;border:0;border-radius:11px;background:#1769ee;color:#fff;font-weight:700;font-size:14px;padding:13px;margin-top:13px;cursor:pointer}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:15px}
+  .metric{background:#fff;border:1px solid #e5edf6;border-radius:13px;padding:12px 9px}
+  .metric-label{font-size:10px;color:#71819a;margin-bottom:8px;line-height:1.3}
+  .metric-value{font-size:15px;font-weight:750;color:#203b62;white-space:nowrap}
+  .list-head{display:flex;align-items:center;justify-content:space-between;margin:20px 2px 11px}
+  .list-head h2{font-size:16px;margin:0}
+  .count{font-size:11px;color:#77869a}
+  .sale{display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #e3ebf5;border-radius:14px;padding:13px;margin-bottom:10px;box-shadow:0 3px 10px rgba(25,53,90,.025)}
+  .sale-icon{width:43px;height:43px;border-radius:12px;background:#eaf2ff;display:grid;place-items:center;color:#1769ee;font-size:20px;flex-shrink:0}
+  .sale-main{flex:1;min-width:0}
+  .sale-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+  .sale-id{font-size:13px;font-weight:750;color:#203b62}
+  .amount{font-size:14px;font-weight:750;white-space:nowrap}
+  .customer{font-size:12px;color:#53657f;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .date{font-size:11px;color:#8592a4}
+  .sale-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .status{display:inline-block;padding:5px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+  .normal{background:#d9f7e7;color:#128047}.pending{background:#e0edff;color:#1769d8}
+  .late{background:#fff0cf;color:#a96200}.cancelled{background:#ffe1e3;color:#c92b37}
+  .arrow{font-size:22px;color:#8da1bc;margin-left:3px}
+  .empty{display:none;text-align:center;padding:28px 10px;color:#8290a3;font-size:13px}
+  @media(min-width:600px){body{padding:24px 0}.app{border-radius:20px;box-shadow:0 8px 35px #17385c12}}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="header">
+    <button class="back" onclick="history.back()" aria-label="Volver">‹</button>
+    <div><h1>Consulta de ventas</h1><p class="subtitle">Busca y revisa las ventas registradas</p></div>
+  </header>
+
+  <section class="panel">
+    <div class="field">
+      <label for="buscar">BUSCAR VENTA O CLIENTE</label>
+      <input id="buscar" type="search" placeholder="Ej. V-000012 o María López">
+    </div>
+    <div class="date-grid">
+      <div class="field"><label for="desde">FECHA DESDE</label><input id="desde" type="date" value="2025-10-04"></div>
+      <div class="field"><label for="hasta">FECHA HASTA</label><input id="hasta" type="date" value="2025-10-08"></div>
+    </div>
+    <div class="filters">
+      <div class="field"><label for="cliente">CLIENTE</label>
+        <select id="cliente"><option value="">Todos los clientes</option><option>María López</option><option>Carlos Pérez</option><option>Ana Torres</option><option>Luis García</option><option>Sofía Ramírez</option></select>
+      </div>
+      <div class="field"><label for="estado">ESTADO</label>
+        <select id="estado"><option value="">Todos</option><option>Normal</option><option>Pendiente</option><option>Retrasada</option><option>Cancelada</option></select>
+      </div>
+    </div>
+    <button class="search-btn" onclick="filtrar()">⌕ &nbsp; Buscar ventas</button>
+  </section>
+
+  <section class="metrics">
+    <div class="metric"><div class="metric-label">Ventas encontradas</div><div class="metric-value" id="m-cantidad">5</div></div>
+    <div class="metric"><div class="metric-label">Monto total</div><div class="metric-value" id="m-total">$137.55</div></div>
+    <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value" id="m-promedio">$27.51</div></div>
+  </section>
+
+  <div class="list-head"><h2>Ventas registradas</h2><span class="count" id="count-label">5 resultados</span></div>
+  <section id="ventas">
+    <article class="sale" data-id="V-000012" data-cliente="María López" data-estado="Normal" data-fecha="2025-10-08" data-total="32.50">
+      <div class="sale-icon">▤</div><div class="sale-main"><div class="sale-top"><span class="sale-id">V-000012</span><span class="amount">$32.50</span></div><div class="customer">María López</div><div class="sale-bottom"><span class="date">08/10/2025 · 12:45</span><span class="status normal">Normal</span></div></div><span class="arrow">›</span>
+    </article>
+    <article class="sale" data-id="V-000011" data-cliente="Carlos Pérez" data-estado="Pendiente" data-fecha="2025-10-07" data-total="18.75">
+      <div class="sale-icon">▤</div><div class="sale-main"><div class="sale-top"><span class="sale-id">V-000011</span><span class="amount">$18.75</span></div><div class="customer">Carlos Pérez</div><div class="sale-bottom"><span class="date">07/10/2025 · 19:30</span><span class="status pending">Pendiente</span></div></div><span class="arrow">›</span>
+    </article>
+    <article class="sale" data-id="V-000010" data-cliente="Ana Torres" data-estado="Normal" data-fecha="2025-10-06" data-total="27.90">
+      <div class="sale-icon">▤</div><div class="sale-main"><div class="sale-top"><span class="sale-id">V-000010</span><span class="amount">$27.90</span></div><div class="customer">Ana Torres</div><div class="sale-bottom"><span class="date">06/10/2025 · 13:15</span><span class="status normal">Normal</span></div></div><span class="arrow">›</span>
+    </article>
+    <article class="sale" data-id="V-000009" data-cliente="Luis García" data-estado="Retrasada" data-fecha="2025-10-05" data-total="15.60">
+      <div class="sale-icon">▤</div><div class="sale-main"><div class="sale-top"><span class="sale-id">V-000009</span><span class="amount">$15.60</span></div><div class="customer">Luis García</div><div class="sale-bottom"><span class="date">05/10/2025 · 20:10</span><span class="status late">Retrasada</span></div></div><span class="arrow">›</span>
+    </article>
+    <article class="sale" data-id="V-000008" data-cliente="Sofía Ramírez" data-estado="Cancelada" data-fecha="2025-10-04" data-total="42.80">
+      <div class="sale-icon">▤</div><div class="sale-main"><div class="sale-top"><span class="sale-id">V-000008</span><span class="amount">$42.80</span></div><div class="customer">Sofía Ramírez</div><div class="sale-bottom"><span class="date">04/10/2025 · 11:20</span><span class="status cancelled">Cancelada</span></div></div><span class="arrow">›</span>
+    </article>
+  </section>
+  <div class="empty" id="empty">No se encontraron ventas con esos filtros.</div>
+</main>
+<script>
+function filtrar(){
+  const texto=document.getElementById('buscar').value.trim().toLowerCase();
+  const cliente=document.getElementById('cliente').value;
+  const estado=document.getElementById('estado').value;
+  const desde=document.getElementById('desde').value;
+  const hasta=document.getElementById('hasta').value;
+  const ventas=[...document.querySelectorAll('.sale')];
+  const visibles=ventas.filter(v=>{
+    const coincideTexto=(v.dataset.id.toLowerCase().includes(texto)||v.dataset.cliente.toLowerCase().includes(texto));
+    return coincideTexto&&(!cliente||v.dataset.cliente===cliente)&&(!estado||v.dataset.estado===estado)&&(!desde||v.dataset.fecha>=desde)&&(!hasta||v.dataset.fecha<=hasta);
+  });
+  ventas.forEach(v=>v.style.display=visibles.includes(v)?'flex':'none');
+  const total=visibles.reduce((s,v)=>s+Number(v.dataset.total),0);
+  document.getElementById('m-cantidad').textContent=visibles.length;
+  document.getElementById('m-total').textContent='$'+total.toFixed(2);
+  document.getElementById('m-promedio').textContent='$'+(visibles.length?total/visibles.length:0).toFixed(2);
+  document.getElementById('count-label').textContent=visibles.length+' resultados';
+  document.getElementById('empty').style.display=visibles.length?'none':'block';
+}
+document.getElementById('buscar').addEventListener('keydown',e=>{if(e.key==='Enter')filtrar()});
+</script>
+</body>
+</html>
