@@ -19,7 +19,8 @@ app.use('/api', clientsRoutes);
 app.use('/api', ProductsRoutes);
 app.use('/api', salesRoutes);
 
+const PORT = process.env.PORT || 3000;
 
-app.listen(3000, () => {
+app.listen(PORT, () => {
   console.log('🚀 Servidor ejecutándose en puerto 3000');
 });
