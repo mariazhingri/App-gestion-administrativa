@@ -3,8 +3,6 @@ import jwt from 'jsonwebtoken';
 export const login = async (req, res) => {
   try {
     const { password } = req.body;
-    console.log("password: ", password);
-    console.log("local: ",process.env.LOGIN_PASSWORD)
 
     if (password !== process.env.LOGIN_PASSWORD) {
       return res.status(401).json({
