@@ -19,6 +19,13 @@ app.use('/api', clientsRoutes);
 app.use('/api', ProductsRoutes);
 app.use('/api', salesRoutes);
 
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Backend funcionando'
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, '0.0.0.0',() => {
