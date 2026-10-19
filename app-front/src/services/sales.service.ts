@@ -61,6 +61,10 @@ type CreateSaleResponse = {
   };
 };
 
+type DeleteSaleResponse = {
+  message?: string;
+};
+
 async function salesRequest<T>(path: string): Promise<T> {
   if (!API_URL) {
     throw new Error('La URL del backend no está configurada.');
@@ -122,4 +126,20 @@ export async function createSale(input: CreateSaleInput): Promise<{ id: number }
   }
 
   return result.data;
+}
+
+export async function deleteSale(id: number): Promise<void> {
+  if (!API_URL) {
+    throw new Error('La URL del backend no está configurada.');
+  }
+
+  const response = await fetch(`${API_URL}/sales/${id}`, {
+    method: 'DELETE',
+    headers: await getAuthorizationHeader(),
+  });
+  const result: DeleteSaleResponse = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message ?? 'No se pudo eliminar la venta.');
+  }
 }

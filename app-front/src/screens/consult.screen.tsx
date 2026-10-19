@@ -1,7 +1,10 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,14 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette } from '@/constants/colors';
 import SalesDateFilter from '@/components/sales-date-filter';
-import { getAllSales, type SaleListItem } from '@/services/sales.service';
-
-const statusOptions = [
-  { label: 'Todos', value: '' },
-  { label: 'Activo', value: 'A' },
-  { label: 'Inactiva', value: 'I' },
-  { label: 'Cancelada', value: 'E' },
-];
+import { deleteSale, getAllSales, type SaleListItem } from '@/services/sales.service';
 
 function formatMoney(amount: number | string) {
   return `$${Number(amount).toFixed(2)}`;
@@ -36,6 +32,18 @@ function formatDate(value: string) {
   return `${day}/${month}/${year}`;
 }
 
+function getCurrentDateRange() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return {
+    fromDate: `${year}-${month}-01`,
+    toDate: `${year}-${month}-${day}`,
+  };
+}
+
 function getSaleNumber(id: number) {
   return `V-${String(id).padStart(6, '0')}`;
 }
@@ -46,24 +54,36 @@ function getStatusLabel(status: SaleListItem['status']) {
   return 'Activo';
 }
 
+function confirmSaleDeletion(saleNumber: string): Promise<boolean> {
+  const message = `¿Eliminar la venta ${saleNumber}? Esta acción no se puede deshacer.`;
+  if (Platform.OS === 'web') {
+    return Promise.resolve(typeof window !== 'undefined' && window.confirm(message));
+  }
+
+  return new Promise((resolve) => {
+    Alert.alert('Eliminar venta', message, [
+      { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Eliminar', style: 'destructive', onPress: () => resolve(true) },
+    ], { cancelable: true, onDismiss: () => resolve(false) });
+  });
+}
+
 export default function ConsultScreen() {
   const insets = useSafeAreaInsets();
+  const [initialDateRange] = useState(getCurrentDateRange);
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [deletingSaleId, setDeletingSaleId] = useState<number | null>(null);
+  const [fromDate, setFromDate] = useState(initialDateRange.fromDate);
+  const [toDate, setToDate] = useState(initialDateRange.toDate);
   const [client, setClient] = useState('');
-  const [status, setStatus] = useState('');
+  const [clientPickerOpen, setClientPickerOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState(() => ({
-    search: '',
-    fromDate: '',
-    toDate: '',
+    fromDate: initialDateRange.fromDate,
+    toDate: initialDateRange.toDate,
     client: '',
-    status: '',
   }));
-  const [openFilter, setOpenFilter] = useState<'client' | 'status' | null>(null);
 
   const loadSales = async () => {
     setLoading(true);
@@ -83,23 +103,40 @@ export default function ConsultScreen() {
     void loadSales();
   }, []);
 
+  const handleDeleteSale = async (sale: SaleListItem) => {
+    if (!await confirmSaleDeletion(getSaleNumber(sale.id))) return;
+
+    setDeletingSaleId(sale.id);
+    try {
+      await deleteSale(sale.id);
+      setSales((currentSales) => currentSales.filter(({ id }) => id !== sale.id));
+    } catch (deleteError) {
+      const message = deleteError instanceof Error
+        ? deleteError.message
+        : 'Error inesperado al eliminar la venta.';
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') {
+          window.alert(`No se pudo eliminar la venta: ${message}`);
+        }
+      } else {
+        Alert.alert('No se pudo eliminar la venta', message);
+      }
+    } finally {
+      setDeletingSaleId(null);
+    }
+  };
+
   const clients = useMemo(
-    () => [...new Map(sales.map((sale) => [sale.cliente_id, sale.clientes.nombre_completo])).entries()]
-      .map(([id, name]) => ({ label: name, value: String(id) })),
+    () => [...new Set(sales.map((sale) => sale.clientes.nombre_completo))],
     [sales],
   );
   const filteredSales = useMemo(() => {
-    const normalizedSearch = appliedFilters.search.trim().toLocaleLowerCase();
+    const normalizedClient = appliedFilters.client.trim().toLocaleLowerCase();
     return sales.filter((sale) => {
-      const matchesSearch = !normalizedSearch
-        || getSaleNumber(sale.id).toLocaleLowerCase().includes(normalizedSearch)
-        || sale.clientes.nombre_completo.toLocaleLowerCase().includes(normalizedSearch);
       const saleDate = getSaleDate(sale.fecha_emision);
-      return matchesSearch
-        && (!appliedFilters.fromDate || saleDate >= appliedFilters.fromDate)
+      return (!appliedFilters.fromDate || saleDate >= appliedFilters.fromDate)
         && (!appliedFilters.toDate || saleDate <= appliedFilters.toDate)
-        && (!appliedFilters.client || String(sale.cliente_id) === appliedFilters.client)
-        && (!appliedFilters.status || sale.status === appliedFilters.status);
+        && (!normalizedClient || sale.clientes.nombre_completo.toLocaleLowerCase().includes(normalizedClient));
     });
   }, [sales, appliedFilters]);
   const metrics = useMemo(() => {
@@ -112,12 +149,11 @@ export default function ConsultScreen() {
 
   const applyFilters = () => {
     setAppliedFilters({
-      search,
       fromDate,
       toDate,
       client,
-      status,
     });
+    setClientPickerOpen(false);
   };
 
   return (
@@ -134,48 +170,26 @@ export default function ConsultScreen() {
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.label}>BUSCAR VENTA O CLIENTE</Text>
-          <TextInput
-            accessibilityLabel="Buscar venta o cliente"
-            autoCapitalize="none"
-            onChangeText={setSearch}
-            onSubmitEditing={applyFilters}
-            placeholder="Ej. V-000012 o María López"
-            placeholderTextColor={Palette.sale.placeholder}
-            returnKeyType="search"
-            style={styles.input}
-            value={search}
-          />
           <View style={styles.twoColumn}>
             <SalesDateFilter label="FECHA DESDE" value={fromDate} onChange={setFromDate} />
             <SalesDateFilter label="FECHA HASTA" value={toDate} onChange={setToDate} />
           </View>
-          <View style={styles.twoColumn}>
-            <FilterDropdown
-              label="CLIENTE"
-              value={client}
-              placeholder="Todos los clientes"
-              options={[{ label: 'Todos los clientes', value: '' }, ...clients]}
-              isOpen={openFilter === 'client'}
-              onToggle={() => setOpenFilter(openFilter === 'client' ? null : 'client')}
-              onSelect={(value) => {
-                setClient(value);
-                setOpenFilter(null);
-              }}
-            />
-            <FilterDropdown
-              label="ESTADO"
-              value={status}
-              placeholder="Todos"
-              options={statusOptions}
-              isOpen={openFilter === 'status'}
-              onToggle={() => setOpenFilter(openFilter === 'status' ? null : 'status')}
-              onSelect={(value) => {
-                setStatus(value);
-                setOpenFilter(null);
-              }}
-            />
-          </View>
+          <ClientSearchSelect
+            value={client}
+            options={clients}
+            isOpen={clientPickerOpen}
+            onFocus={() => setClientPickerOpen(true)}
+            onBlur={() => setClientPickerOpen(false)}
+            onChange={(value) => {
+              setClient(value);
+              setClientPickerOpen(true);
+            }}
+            onSelect={(value) => {
+              setClient(value);
+              setClientPickerOpen(false);
+            }}
+            onSubmit={applyFilters}
+          />
           <Pressable
             accessibilityRole="button"
             onPress={applyFilters}
@@ -213,33 +227,58 @@ export default function ConsultScreen() {
           </View>
         ) : (
           filteredSales.map((sale) => (
-            <Pressable
+            <View
               key={sale.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Abrir venta ${getSaleNumber(sale.id)} de ${sale.clientes.nombre_completo}`}
-              onPress={() => router.push({
-                pathname: '/venta/[id]',
-                params: { id: String(sale.id) },
-              })}
-              style={({ pressed }) => [styles.saleCard, pressed && styles.pressed]}>
-              <View style={styles.saleIcon}>
-                <Text style={styles.saleIconText}>▤</Text>
-              </View>
-              <View style={styles.saleMain}>
-                <View style={styles.saleTop}>
-                  <Text style={styles.saleNumber}>{getSaleNumber(sale.id)}</Text>
+              style={styles.saleCard}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir venta ${getSaleNumber(sale.id)} de ${sale.clientes.nombre_completo}`}
+                onPress={() => router.push({
+                  pathname: '/venta/[id]',
+                  params: { id: String(sale.id) },
+                })}
+                style={({ pressed }) => [styles.saleContent, pressed && styles.pressed]}>
+                <View style={styles.saleIcon}>
+                  <Text style={styles.saleIconText}>▤</Text>
+                </View>
+                <View style={styles.saleMain}>
+                  <View style={styles.saleTop}>
+                    <Text style={styles.saleNumber}>{getSaleNumber(sale.id)}</Text>
+                  </View>
+                  <Text numberOfLines={1} style={styles.customerName}>
+                    {sale.clientes.nombre_completo}
+                  </Text>
+                  <View style={styles.saleBottom}>
+                    <Text style={styles.saleDate}>{formatDate(sale.fecha_emision)}</Text>
+                    {/* <StatusBadge status={sale.status} /> */}
+                  </View>
+                </View>
+                <View>                    
                   <Text style={styles.saleAmount}>{formatMoney(sale.total)}</Text>
                 </View>
-                <Text numberOfLines={1} style={styles.customerName}>
-                  {sale.clientes.nombre_completo}
-                </Text>
-                <View style={styles.saleBottom}>
-                  <Text style={styles.saleDate}>{formatDate(sale.fecha_emision)}</Text>
-                  <StatusBadge status={sale.status} />
-                </View>
-              </View>
-              <Text style={styles.arrow}>›</Text>
-            </Pressable>
+                {/* <Text style={styles.arrow}>›</Text> */}
+              </Pressable>
+              <Pressable
+                accessibilityLabel={`Eliminar venta ${getSaleNumber(sale.id)}`}
+                accessibilityRole="button"
+                disabled={deletingSaleId !== null}
+                onPress={() => void handleDeleteSale(sale)}
+                style={({ pressed }) => [
+                  styles.deleteButton,
+                  pressed && styles.pressed,
+                  deletingSaleId !== null && styles.deleteButtonDisabled,
+                ]}>
+                {deletingSaleId === sale.id ? (
+                  <ActivityIndicator color="#C33B43" size="small" />
+                ) : (
+                  <SymbolView
+                    name={{ ios: 'trash', android: 'delete', web: 'delete' }}
+                    size={20}
+                    tintColor="#C33B43"
+                  />
+                )}
+              </Pressable>
+            </View>
           ))
         )}
       </ScrollView>
@@ -247,46 +286,70 @@ export default function ConsultScreen() {
   );
 }
 
-function FilterDropdown({
-  label,
+function ClientSearchSelect({
   value,
-  placeholder,
   options,
   isOpen,
-  onToggle,
+  onFocus,
+  onBlur,
+  onChange,
   onSelect,
+  onSubmit,
 }: {
-  label: string;
   value: string;
-  placeholder: string;
-  options: { label: string; value: string }[];
+  options: string[];
   isOpen: boolean;
-  onToggle: () => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  onChange: (value: string) => void;
   onSelect: (value: string) => void;
+  onSubmit: () => void;
 }) {
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? placeholder;
+  const normalizedValue = value.trim().toLocaleLowerCase();
+  const filteredOptions = options.filter((option) =>
+    option.toLocaleLowerCase().includes(normalizedValue),
+  );
+
   return (
     <View style={styles.dropdownField}>
-      <Text style={styles.label}>{label}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        onPress={onToggle}
-        style={styles.dropdownButton}>
-        <Text numberOfLines={1} style={styles.dropdownText}>{selectedLabel}</Text>
-        <Text style={styles.dropdownArrow}>⌄</Text>
-      </Pressable>
+      <Text style={styles.label}>CLIENTE</Text>
+      <TextInput
+        accessibilityLabel="Buscar cliente"
+        autoCapitalize="words"
+        onBlur={() => {
+          setTimeout(() => {
+            onBlur();
+          }, 150);
+        }}
+        onChangeText={onChange}
+        onFocus={onFocus}
+        onSubmitEditing={onSubmit}
+        placeholder="Todos los clientes"
+        placeholderTextColor={Palette.sale.placeholder}
+        returnKeyType="search"
+        style={styles.clientInput}
+        value={value}
+      />
       {isOpen && (
         <View style={styles.dropdownOptions}>
-          {options.map((option) => (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onSelect('')}
+            style={styles.dropdownOption}>
+            <Text style={styles.dropdownOptionText}>Todos los clientes</Text>
+          </Pressable>
+          {filteredOptions.map((option) => (
             <Pressable
-              key={`${label}-${option.value || 'all'}`}
+              key={option}
               accessibilityRole="button"
-              onPress={() => onSelect(option.value)}
+              onPress={() => onSelect(option)}
               style={styles.dropdownOption}>
-              <Text style={styles.dropdownOptionText}>{option.label}</Text>
+              <Text style={styles.dropdownOptionText}>{option}</Text>
             </Pressable>
           ))}
+          {filteredOptions.length === 0 && (
+            <Text style={styles.noClientOption}>No se encontraron clientes.</Text>
+          )}
         </View>
       )}
     </View>
@@ -341,34 +404,26 @@ const styles = StyleSheet.create({
     borderRadius: 16, padding: 15, marginBottom: 14,
   },
   label: { color: '#65748A', fontSize: 11, fontWeight: '700', marginBottom: 7, letterSpacing: 0.3 },
-  input: {
-    minHeight: 44, borderWidth: 1, borderColor: '#DCE5EF', borderRadius: 10,
-    paddingHorizontal: 12, color: '#283B55', fontSize: 13, marginBottom: 12,
-  },
   twoColumn: { flexDirection: 'row', gap: 10 },
-  dropdownField: { flex: 1, minWidth: 0, marginBottom: 12 },
-  dropdownButton: {
-    minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    gap: 5, borderWidth: 1, borderColor: '#DCE5EF', borderRadius: 10, paddingHorizontal: 10,
+  dropdownField: { minWidth: 0, marginBottom: 12 },
+  clientInput: {
+    minHeight: 44, borderWidth: 1, borderColor: '#DCE5EF', borderRadius: 10,
+    paddingHorizontal: 12, color: '#283B55', fontSize: 13,
   },
-  dropdownText: { flex: 1, color: '#283B55', fontSize: 12 },
-  dropdownArrow: { color: '#607B9F', fontSize: 17 },
   dropdownOptions: {
     position: 'absolute', zIndex: 2, top: 68, left: 0, right: 0,
     maxHeight: 180, overflow: 'scroll', borderWidth: 1, borderColor: '#DCE5EF',
     borderRadius: 10, backgroundColor: '#FFFFFF',
   },
-  dropdownOption: { 
-    minHeight: 38, 
-    justifyContent: 'center', 
-    paddingHorizontal: 10, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#EDF1F6' 
+  dropdownOption: {
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EDF1F6',
   },
-  
-  dropdownOptionText: { 
-    color: '#283B55', 
-    fontSize: 12 },
+  dropdownOptionText: { color: '#283B55', fontSize: 12 },
+  noClientOption: { color: '#8290A3', fontSize: 12, padding: 10 },
 
   searchButton: {
     minHeight: 46, 
@@ -392,9 +447,13 @@ const styles = StyleSheet.create({
   listTitle: { color: '#1D2B43', fontSize: 16, fontWeight: '700' },
   resultCount: { color: '#77869A', fontSize: 11 },
   saleCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 11,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3EBF5',
-    borderRadius: 14, padding: 13, marginBottom: 10,
+    borderRadius: 14, padding: 8, marginBottom: 10,
+  },
+  saleContent: {
+    flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 11,
+    paddingVertical: 5, paddingLeft: 5,
   },
   saleIcon: {
     width: 43, height: 43, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
@@ -414,6 +473,11 @@ const styles = StyleSheet.create({
   cancelledBadge: { backgroundColor: '#FFE1E3' },
   statusText: { color: '#1769D8', fontSize: 10, fontWeight: '700' },
   arrow: { color: '#8DA1BC', fontSize: 22 },
+  deleteButton: {
+    width: 42, height: 42, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 12, backgroundColor: '#FFF0F0',
+  },
+  deleteButtonDisabled: { opacity: 0.55 },
   loading: { marginTop: 28 },
   messagePanel: { alignItems: 'center', padding: 28, backgroundColor: '#FFFFFF', borderRadius: 14 },
   errorText: { color: Palette.sale.error, fontSize: 13, textAlign: 'center', marginBottom: 12 },

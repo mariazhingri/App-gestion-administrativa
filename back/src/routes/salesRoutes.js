@@ -5,6 +5,7 @@ import salesController from '../controllers/salesController.js';
 const router = Router();
 
 router.get('/sales/all', verificarToken, salesController.getAllSales);
+router.delete('/sales/:id', verificarToken, salesController.deleteSale);
 router.get('/sales/:id', verificarToken, salesController.getSaleById);
 router.post('/sales', verificarToken, salesController.createSale);
 

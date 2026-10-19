@@ -67,6 +67,19 @@ const SalesService = {
         return sale;
     },
 
+    async deleteSale(id) {
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            throw createRequestError("El identificador de venta no es válido.");
+        }
+
+        const sale = await Sales.deleteSale(id);
+        if (!sale) {
+            throw createRequestError("No se encontró la venta solicitada.", 404);
+        }
+
+        return sale;
+    },
+
     async createSale(input) {
         const {
             cliente_id,

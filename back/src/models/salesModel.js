@@ -65,6 +65,25 @@ const Sales = {
             select: { id: true },
         });
     },
+
+    async deleteSale(id) {
+        return prisma.$transaction(async (transaction) => {
+            const sale = await transaction.ventas.findUnique({
+                where: { id },
+                select: { id: true },
+            });
+            if (!sale) {
+                return null;
+            }
+
+            await transaction.venta_detalle.deleteMany({
+                where: { venta_id: id },
+            });
+            await transaction.ventas.delete({ where: { id } });
+
+            return sale;
+        });
+    },
 };
 
 export default Sales;
